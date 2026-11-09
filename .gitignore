@@ -1,0 +1,36 @@
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Secrets (never commit) =====
+.env
+.env.*
+!.env.example
+*.pfx
+secrets.json
+
+# ===== .NET / Visual Studio =====
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+TestResults/
+*.log
+publish/
+
+# ===== Node / Frontend =====
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+npm-debug.log*
+
+# ===== Editors =====
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/

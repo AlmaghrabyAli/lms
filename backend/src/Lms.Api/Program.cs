@@ -1,4 +1,5 @@
 using Lms.Api.Data;
+using Lms.Api.Data.Seed;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
+
+// Apply migrations and seed initial data
+await DbSeeder.SeedAsync(app.Services);
 
 // Middleware pipeline (order matters)
 if (app.Environment.IsDevelopment())

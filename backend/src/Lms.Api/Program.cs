@@ -2,6 +2,7 @@ using System.Text;
 using Lms.Api.Authorization;
 using Lms.Api.Data;
 using Lms.Api.Data.Seed;
+using Lms.Api.Documentation;
 using Lms.Api.Entities;
 using Lms.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -12,7 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Services (Dependency Injection container)
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -62,7 +63,12 @@ await DbSeeder.SeedAsync(app.Services);
 // Middleware pipeline (order matters)
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi(); // /openapi/v1.json
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "Lms API v1");
+        options.RoutePrefix = "swagger"; // UI at /swagger
+    });
 }
 
 app.UseHttpsRedirection();

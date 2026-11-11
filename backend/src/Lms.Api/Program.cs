@@ -4,6 +4,7 @@ using Lms.Api.Data;
 using Lms.Api.Data.Seed;
 using Lms.Api.Documentation;
 using Lms.Api.Entities;
+using Lms.Api.Middleware;
 using Lms.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,18 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Errors: one JSON shape (ProblemDetails) for everything, with a traceId to find the log entry
+builder.Services.AddProblemDetails(options =>
+    options.CustomizeProblemDetails = context =>
+        context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier);
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// CORS: allowed origins come from config (Cors:AllowedOrigins). Empty list = no cross-origin access.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+    options.AddPolicy("Frontend", policy =>
+        policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
 
 // JWT settings (Key comes from user-secrets in dev, env var Jwt__Key in production)
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
@@ -61,6 +74,9 @@ var app = builder.Build();
 await DbSeeder.SeedAsync(app.Services);
 
 // Middleware pipeline (order matters)
+app.UseExceptionHandler(); // unhandled exceptions -> ProblemDetails (keep this first)
+app.UseStatusCodePages();  // empty 401/403/404 responses -> ProblemDetails
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi(); // /openapi/v1.json
@@ -72,8 +88,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseAuthentication(); // who are you?  (must come before UseAuthorization)
-app.UseAuthorization();  // are you allowed?
+app.UseCors("Frontend");  // before authentication so preflight (OPTIONS) requests succeed
+app.UseAuthentication();  // who are you?  (must come before UseAuthorization)
+app.UseAuthorization();   // are you allowed?
 
 app.MapControllers();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));

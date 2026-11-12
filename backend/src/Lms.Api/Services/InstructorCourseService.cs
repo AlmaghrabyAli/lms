@@ -14,7 +14,7 @@ public class InstructorCourseService(AppDbContext db) : IInstructorCourseService
     private const int DefaultPageSize = 12;
     private const int MaxPageSize = 50;
 
-    // One projection reused by list / create / update, so the SQL only selects what the DTO needs.
+    // One projection reused by list / create / update / publish, so the SQL only selects what the DTO needs.
     private static readonly Expression<Func<Course, InstructorCourseDto>> ToSummary = c => new InstructorCourseDto(
         c.Id, c.Title, c.Slug, c.Description, c.ThumbnailUrl, c.Level, c.Category, c.IsPublished,
         c.CreatedAt, c.UpdatedAt,
@@ -98,10 +98,57 @@ public class InstructorCourseService(AppDbContext db) : IInstructorCourseService
         course.Level = request.Level;
         course.ThumbnailUrl = NormalizeUrl(request.ThumbnailUrl);
         course.UpdatedAt = DateTime.UtcNow;
-        // Slug is NOT changed on purpose: stable URLs.
+        // Slug and IsPublished are NOT touched here: stable URLs, and publishing has its own endpoint.
 
         await db.SaveChangesAsync();
         return await SummaryAsync(courseId, instructorId);
+    }
+
+    public async Task<CourseActionResult> PublishAsync(int courseId, int instructorId)
+    {
+        var course = await GetOwnedCourseAsync(courseId, instructorId);
+        if (course is null) return new CourseActionResult(null, CourseActionError.NotFound);
+
+        if (!course.IsPublished)
+        {
+            // A lesson always sits inside a module, so "has a lesson" also means "has a module".
+            var hasLesson = await db.Lessons.AnyAsync(l => l.Module.CourseId == courseId);
+            if (!hasLesson) return new CourseActionResult(null, CourseActionError.NotPublishable);
+
+            course.IsPublished = true;
+            course.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        return new CourseActionResult(await SummaryAsync(courseId, instructorId), CourseActionError.None);
+    }
+
+    public async Task<CourseActionResult> UnpublishAsync(int courseId, int instructorId)
+    {
+        var course = await GetOwnedCourseAsync(courseId, instructorId);
+        if (course is null) return new CourseActionResult(null, CourseActionError.NotFound);
+
+        if (course.IsPublished)
+        {
+            course.IsPublished = false;
+            course.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        return new CourseActionResult(await SummaryAsync(courseId, instructorId), CourseActionError.None);
+    }
+
+    public async Task<CourseActionError> DeleteAsync(int courseId, int instructorId)
+    {
+        var course = await GetOwnedCourseAsync(courseId, instructorId);
+        if (course is null) return CourseActionError.NotFound;
+
+        // Phase 2 rule: only drafts can be deleted. (Phase 3 adds: and only if nobody is enrolled.)
+        if (course.IsPublished) return CourseActionError.PublishedCannotBeDeleted;
+
+        db.Courses.Remove(course); // the database cascade removes its modules and lessons
+        await db.SaveChangesAsync();
+        return CourseActionError.None;
     }
 
     // Resource-based authorization: the course is loaded only if it belongs to this instructor.

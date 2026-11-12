@@ -12,8 +12,7 @@ public class Course
     public bool IsPublished { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-    // Foreign key + navigation to the instructor who owns this course
     public int InstructorId { get; set; }
     public User Instructor { get; set; } = null!;
+    public ICollection<Module> Modules { get; set; } = new List<Module>();
 }

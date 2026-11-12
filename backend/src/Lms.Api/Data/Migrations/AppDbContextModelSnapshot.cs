@@ -81,6 +81,77 @@ namespace Lms.Api.Data.Migrations
                     b.ToTable("Courses");
                 });
 
+            modelBuilder.Entity("Lms.Api.Entities.Lesson", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExternalUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("ModuleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("VideoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModuleId", "OrderIndex");
+
+                    b.ToTable("Lessons");
+                });
+
+            modelBuilder.Entity("Lms.Api.Entities.Module", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId", "OrderIndex");
+
+                    b.ToTable("Modules");
+                });
+
             modelBuilder.Entity("Lms.Api.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -132,6 +203,38 @@ namespace Lms.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Instructor");
+                });
+
+            modelBuilder.Entity("Lms.Api.Entities.Lesson", b =>
+                {
+                    b.HasOne("Lms.Api.Entities.Module", "Module")
+                        .WithMany("Lessons")
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Module");
+                });
+
+            modelBuilder.Entity("Lms.Api.Entities.Module", b =>
+                {
+                    b.HasOne("Lms.Api.Entities.Course", "Course")
+                        .WithMany("Modules")
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+                });
+
+            modelBuilder.Entity("Lms.Api.Entities.Course", b =>
+                {
+                    b.Navigation("Modules");
+                });
+
+            modelBuilder.Entity("Lms.Api.Entities.Module", b =>
+                {
+                    b.Navigation("Lessons");
                 });
 
             modelBuilder.Entity("Lms.Api.Entities.User", b =>

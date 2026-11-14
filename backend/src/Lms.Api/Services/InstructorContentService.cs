@@ -8,12 +8,17 @@ namespace Lms.Api.Services;
 
 public class InstructorContentService(AppDbContext db) : IInstructorContentService
 {
-    // One projection reused by create / update / move, so the SQL only selects what the DTO needs.
+    // Projections reused by several methods, so the SQL only selects what the DTO needs.
+    private static readonly Expression<Func<Lesson, LessonDto>> ToLessonDto = l => new LessonDto(
+        l.Id, l.Title, l.Type, l.VideoUrl, l.Content, l.ExternalUrl, l.DurationMinutes, l.OrderIndex);
+
     private static readonly Expression<Func<Module, ModuleDto>> ToModuleDto = m => new ModuleDto(
         m.Id, m.Title, m.OrderIndex,
         m.Lessons.OrderBy(l => l.OrderIndex).Select(l => new LessonDto(
             l.Id, l.Title, l.Type, l.VideoUrl, l.Content, l.ExternalUrl, l.DurationMinutes, l.OrderIndex
         )).ToList());
+
+    // ======================= Modules =======================
 
     public async Task<ModuleResult> CreateModuleAsync(int courseId, int instructorId, CreateModuleRequest request)
     {
@@ -33,7 +38,7 @@ public class InstructorContentService(AppDbContext db) : IInstructorContentServi
         course.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        return new ModuleResult(await GetDtoAsync(module.Id), ContentActionError.None);
+        return new ModuleResult(await GetModuleDtoAsync(module.Id), ContentActionError.None);
     }
 
     public async Task<ModuleResult> UpdateModuleAsync(int moduleId, int instructorId, UpdateModuleRequest request)
@@ -45,7 +50,7 @@ public class InstructorContentService(AppDbContext db) : IInstructorContentServi
         module.Course.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        return new ModuleResult(await GetDtoAsync(moduleId), ContentActionError.None);
+        return new ModuleResult(await GetModuleDtoAsync(moduleId), ContentActionError.None);
     }
 
     public async Task<ContentActionError> DeleteModuleAsync(int moduleId, int instructorId)
@@ -108,12 +113,141 @@ public class InstructorContentService(AppDbContext db) : IInstructorContentServi
         return new ModuleListResult(modules, ContentActionError.None);
     }
 
+    // ======================= Lessons =======================
+
+    public async Task<LessonResult> CreateLessonAsync(int moduleId, int instructorId, CreateLessonRequest request)
+    {
+        var module = await GetOwnedModuleAsync(moduleId, instructorId);
+        if (module is null) return new LessonResult(null, ContentActionError.NotFound);
+
+        var last = await db.Lessons.Where(l => l.ModuleId == moduleId).MaxAsync(l => (int?)l.OrderIndex);
+        var lesson = new Lesson
+        {
+            ModuleId = moduleId, // from the URL, never from the body
+            OrderIndex = (last ?? 0) + 1
+        };
+        ApplyRequest(lesson, request);
+
+        db.Lessons.Add(lesson);
+        module.Course.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        return new LessonResult(await GetLessonDtoAsync(lesson.Id), ContentActionError.None);
+    }
+
+    public async Task<LessonResult> UpdateLessonAsync(int lessonId, int instructorId, UpdateLessonRequest request)
+    {
+        var lesson = await GetOwnedLessonAsync(lessonId, instructorId);
+        if (lesson is null) return new LessonResult(null, ContentActionError.NotFound);
+
+        ApplyRequest(lesson, request); // OrderIndex and ModuleId are NOT touched here
+        lesson.Module.Course.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        return new LessonResult(await GetLessonDtoAsync(lessonId), ContentActionError.None);
+    }
+
+    public async Task<ContentActionError> DeleteLessonAsync(int lessonId, int instructorId)
+    {
+        var lesson = await GetOwnedLessonAsync(lessonId, instructorId);
+        if (lesson is null) return ContentActionError.NotFound;
+
+        var course = lesson.Module.Course;
+
+        // A published course must keep at least one lesson.
+        if (course.IsPublished)
+        {
+            var otherLessonExists = await db.Lessons.AnyAsync(l => l.Module.CourseId == course.Id && l.Id != lessonId);
+            if (!otherLessonExists) return ContentActionError.LastLessonOfPublishedCourse;
+        }
+
+        var siblings = await db.Lessons
+            .Where(l => l.ModuleId == lesson.ModuleId && l.Id != lessonId)
+            .OrderBy(l => l.OrderIndex).ThenBy(l => l.Id)
+            .ToListAsync();
+
+        db.Lessons.Remove(lesson);
+        for (var i = 0; i < siblings.Count; i++) siblings[i].OrderIndex = i + 1;
+
+        course.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return ContentActionError.None;
+    }
+
+    public async Task<LessonListResult> MoveLessonAsync(int lessonId, int instructorId, MoveDirection direction)
+    {
+        var lesson = await GetOwnedLessonAsync(lessonId, instructorId);
+        if (lesson is null) return new LessonListResult(null, ContentActionError.NotFound);
+
+        // Lessons move only inside their own module.
+        var siblings = await db.Lessons
+            .Where(l => l.ModuleId == lesson.ModuleId)
+            .OrderBy(l => l.OrderIndex).ThenBy(l => l.Id)
+            .ToListAsync();
+
+        var index = siblings.FindIndex(l => l.Id == lessonId);
+        var neighbourIndex = direction == MoveDirection.Up ? index - 1 : index + 1;
+
+        if (neighbourIndex >= 0 && neighbourIndex < siblings.Count)
+        {
+            var neighbour = siblings[neighbourIndex];
+            (lesson.OrderIndex, neighbour.OrderIndex) = (neighbour.OrderIndex, lesson.OrderIndex);
+            lesson.Module.Course.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        var lessons = await db.Lessons.AsNoTracking()
+            .Where(l => l.ModuleId == lesson.ModuleId)
+            .OrderBy(l => l.OrderIndex).ThenBy(l => l.Id)
+            .Select(ToLessonDto)
+            .ToListAsync();
+
+        return new LessonListResult(lessons, ContentActionError.None);
+    }
+
+    // ======================= Helpers =======================
+
+    // Copies the request into the entity and nulls every field that does not belong to the chosen type,
+    // so changing the type never leaves stale data behind.
+    private static void ApplyRequest(Lesson lesson, CreateLessonRequest request)
+    {
+        lesson.Title = request.Title.Trim();
+        lesson.Type = request.Type!.Value;
+        lesson.DurationMinutes = request.DurationMinutes;
+        lesson.VideoUrl = null;
+        lesson.Content = null;
+        lesson.ExternalUrl = null;
+
+        switch (lesson.Type)
+        {
+            case LessonType.Video:
+                lesson.VideoUrl = YouTubeUrl.TryNormalize(request.VideoUrl, out var embed)
+                    ? embed
+                    : throw new InvalidOperationException("Video lesson reached the service with an invalid YouTube url.");
+                break;
+            case LessonType.Text:
+                lesson.Content = request.Content!.Trim();
+                break;
+            case LessonType.Link:
+                lesson.ExternalUrl = request.ExternalUrl!.Trim();
+                break;
+        }
+    }
+
     // Resource-based authorization: module -> course -> instructor, all inside the query.
     // Tracked (no AsNoTracking) because callers modify it; Course is included to touch UpdatedAt.
     private Task<Module?> GetOwnedModuleAsync(int moduleId, int instructorId) =>
         db.Modules.Include(m => m.Course)
             .FirstOrDefaultAsync(m => m.Id == moduleId && m.Course.InstructorId == instructorId);
 
-    private Task<ModuleDto?> GetDtoAsync(int moduleId) =>
+    // lesson -> module -> course -> instructor
+    private Task<Lesson?> GetOwnedLessonAsync(int lessonId, int instructorId) =>
+        db.Lessons.Include(l => l.Module).ThenInclude(m => m.Course)
+            .FirstOrDefaultAsync(l => l.Id == lessonId && l.Module.Course.InstructorId == instructorId);
+
+    private Task<ModuleDto?> GetModuleDtoAsync(int moduleId) =>
         db.Modules.AsNoTracking().Where(m => m.Id == moduleId).Select(ToModuleDto).FirstOrDefaultAsync();
+
+    private Task<LessonDto?> GetLessonDtoAsync(int lessonId) =>
+        db.Lessons.AsNoTracking().Where(l => l.Id == lessonId).Select(ToLessonDto).FirstOrDefaultAsync();
 }

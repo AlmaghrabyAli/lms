@@ -69,6 +69,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IInstructorCourseService, InstructorCourseService>();
 builder.Services.AddScoped<IInstructorContentService, InstructorContentService>();
+builder.Services.AddScoped<ICatalogService, CatalogService>();
 
 var app = builder.Build();
 

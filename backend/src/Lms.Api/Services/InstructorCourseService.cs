@@ -167,7 +167,7 @@ public class InstructorCourseService(AppDbContext db) : IInstructorCourseService
         var baseSlug = SlugHelper.Slugify(title);
         var candidate = baseSlug;
         var n = 2;
-        while (await db.Courses.AnyAsync(c => c.Slug == candidate))
+        while (candidate == "categories" || await db.Courses.AnyAsync(c => c.Slug == candidate)) // "categories" is reserved: GET /api/courses/categories
         {
             candidate = $"{baseSlug}-{n}";
             n++;

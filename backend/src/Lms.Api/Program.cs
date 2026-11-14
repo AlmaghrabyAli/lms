@@ -68,6 +68,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IInstructorCourseService, InstructorCourseService>();
+builder.Services.AddScoped<IInstructorContentService, InstructorContentService>();
 
 var app = builder.Build();
 

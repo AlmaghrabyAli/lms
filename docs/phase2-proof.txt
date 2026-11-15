@@ -1,0 +1,39 @@
+Phase 2 verification - instructor content API + public catalog
+Run date: 2026-11-15 18:43
+
+
+--- 1. The instructor builds a complete course using only the API
+PASS  create a course -> 201, stored as a draft, slug generated from the title
+PASS  add module 1 -> 201, orderIndex 1
+PASS  add module 2 -> 201, orderIndex 2
+PASS  add a Text lesson to module 1 -> 201
+PASS  add a Video lesson to module 1 -> 201, url stored as the YouTube embed form
+PASS  add a Link lesson to module 2 -> 201
+PASS  reorder: move module 2 Up -> order M2, M1
+PASS  reorder: move the Video lesson Up -> order Video, Text
+PASS  owner outline: modules (M2, M1), lessons of M1 (Video, Text), lessons of M2 (Link)
+
+--- 2. The public catalog shows the course only after it is published
+PASS  before publishing: anonymous list is empty and detail by slug is 404
+PASS  publish -> 200 and the course is published in the DB
+PASS  after publishing: the anonymous list shows exactly this course
+PASS  after publishing: public detail has 2 modules, 3 lessons, the same order as the owner outline
+PASS  public detail leaks no lesson content, urls or emails
+
+--- 3. Role matrix: no token, student and admin on all 15 instructor endpoints
+PASS  no token -> 401 on all 15 instructor endpoints
+PASS  student -> 403 on all 15 instructor endpoints
+PASS  admin -> 403 on all 15 instructor endpoints
+
+--- 4. Ownership: another instructor gets 404 on every resource of the course
+PASS  other instructor -> 404 on all 13 endpoints that target this course, its modules or its lessons
+PASS  other instructor's own course list is 200 and does not contain this course
+PASS  after all the 401/403/404 attempts the course is byte-for-byte unchanged
+
+--- 5. Lifecycle rules
+PASS  a published course cannot be deleted -> 409 and it still exists
+PASS  unpublish -> 200 and the catalog hides the course again (list empty, detail 404)
+PASS  delete the draft -> 204 and the DB cascade removed its modules and lessons
+PASS  test data cleaned up
+
+RESULT: 24 checks passed, 0 failed

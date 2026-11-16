@@ -6,7 +6,8 @@ public enum ContentActionError
 {
     None,
     NotFound,
-    LastLessonOfPublishedCourse
+    LastLessonOfPublishedCourse,
+    HasStudentProgress
 }
 
 public record ModuleResult(ModuleDto? Module, ContentActionError Error);

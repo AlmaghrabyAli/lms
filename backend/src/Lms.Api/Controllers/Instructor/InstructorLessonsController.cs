@@ -26,6 +26,12 @@ public class InstructorLessonsController(IInstructorContentService content) : Co
             detail: "A published course must keep at least one lesson. Unpublish it first.",
             statusCode: StatusCodes.Status409Conflict);
 
+    private ObjectResult HasProgressConflict() =>
+        Problem(
+            title: "Lesson cannot be deleted",
+            detail: "Students already have progress on this lesson; unpublish or edit it instead.",
+            statusCode: StatusCodes.Status409Conflict);
+
     [HttpPost("modules/{moduleId:int}/lessons")]
     public async Task<ActionResult<LessonDto>> Create(int moduleId, CreateLessonRequest request)
     {
@@ -48,6 +54,7 @@ public class InstructorLessonsController(IInstructorContentService content) : Co
     {
         var error = await content.DeleteLessonAsync(lessonId, UserId);
         if (error == ContentActionError.NotFound) return LessonNotFound();
+        if (error == ContentActionError.HasStudentProgress) return HasProgressConflict();
         if (error == ContentActionError.LastLessonOfPublishedCourse) return LastLessonConflict();
         return NoContent();
     }

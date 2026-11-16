@@ -81,6 +81,36 @@ namespace Lms.Api.Data.Migrations
                     b.ToTable("Courses");
                 });
 
+            modelBuilder.Entity("Lms.Api.Entities.Enrollment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EnrolledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("UserId", "CourseId")
+                        .IsUnique();
+
+                    b.ToTable("Enrollments");
+                });
+
             modelBuilder.Entity("Lms.Api.Entities.Lesson", b =>
                 {
                     b.Property<int>("Id")
@@ -124,6 +154,33 @@ namespace Lms.Api.Data.Migrations
                     b.HasIndex("ModuleId", "OrderIndex");
 
                     b.ToTable("Lessons");
+                });
+
+            modelBuilder.Entity("Lms.Api.Entities.LessonProgress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("LessonId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId");
+
+                    b.HasIndex("UserId", "LessonId")
+                        .IsUnique();
+
+                    b.ToTable("LessonProgresses");
                 });
 
             modelBuilder.Entity("Lms.Api.Entities.Module", b =>
@@ -205,6 +262,25 @@ namespace Lms.Api.Data.Migrations
                     b.Navigation("Instructor");
                 });
 
+            modelBuilder.Entity("Lms.Api.Entities.Enrollment", b =>
+                {
+                    b.HasOne("Lms.Api.Entities.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Lms.Api.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Lms.Api.Entities.Lesson", b =>
                 {
                     b.HasOne("Lms.Api.Entities.Module", "Module")
@@ -214,6 +290,25 @@ namespace Lms.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Module");
+                });
+
+            modelBuilder.Entity("Lms.Api.Entities.LessonProgress", b =>
+                {
+                    b.HasOne("Lms.Api.Entities.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Lms.Api.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Lms.Api.Entities.Module", b =>

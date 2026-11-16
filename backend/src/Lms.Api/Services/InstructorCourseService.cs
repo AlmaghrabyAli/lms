@@ -146,6 +146,9 @@ public class InstructorCourseService(AppDbContext db) : IInstructorCourseService
         // Phase 2 rule: only drafts can be deleted. (Phase 3 adds: and only if nobody is enrolled.)
         if (course.IsPublished) return CourseActionError.PublishedCannotBeDeleted;
 
+        // D1: a course with enrolled students cannot be deleted (a draft can have enrollments: enroll, then unpublish).
+        if (await db.Enrollments.AnyAsync(e => e.CourseId == courseId)) return CourseActionError.HasEnrollments;
+
         db.Courses.Remove(course); // the database cascade removes its modules and lessons
         await db.SaveChangesAsync();
         return CourseActionError.None;

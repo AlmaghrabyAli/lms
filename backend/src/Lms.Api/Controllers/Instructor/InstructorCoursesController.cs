@@ -76,6 +76,11 @@ public class InstructorCoursesController(IInstructorCourseService courses) : Con
                 title: "Published course cannot be deleted",
                 detail: "Unpublish the course first, then delete it.",
                 statusCode: StatusCodes.Status409Conflict);
+        if (error == CourseActionError.HasEnrollments)
+            return Problem(
+                title: "Course cannot be deleted",
+                detail: "This course has enrolled students. Unpublish it instead.",
+                statusCode: StatusCodes.Status409Conflict);
         return NoContent();
     }
 }

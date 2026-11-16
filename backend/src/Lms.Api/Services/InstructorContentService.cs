@@ -59,6 +59,8 @@ public class InstructorContentService(AppDbContext db) : IInstructorContentServi
         if (module is null) return ContentActionError.NotFound;
 
         var course = module.Course;
+        // D1: a module is blocked when any of its lessons has student progress (before the published-course rule).
+        if (await db.LessonProgresses.AnyAsync(p => p.Lesson.ModuleId == moduleId)) return ContentActionError.HasStudentProgress;
 
         // A published course must always keep at least one lesson (same rule as publishing).
         if (course.IsPublished)
@@ -153,6 +155,8 @@ public class InstructorContentService(AppDbContext db) : IInstructorContentServi
         if (lesson is null) return ContentActionError.NotFound;
 
         var course = lesson.Module.Course;
+        // D1: students' progress is never wiped silently. Checked BEFORE the published-course rule.
+        if (await db.LessonProgresses.AnyAsync(p => p.LessonId == lessonId)) return ContentActionError.HasStudentProgress;
 
         // A published course must keep at least one lesson.
         if (course.IsPublished)

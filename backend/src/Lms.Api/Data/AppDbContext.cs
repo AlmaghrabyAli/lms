@@ -9,6 +9,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Course> Courses => Set<Course>();
     public DbSet<Module> Modules => Set<Module>();
     public DbSet<Lesson> Lessons => Set<Lesson>();
+    public DbSet<Enrollment> Enrollments => Set<Enrollment>();
+    public DbSet<LessonProgress> LessonProgresses => Set<LessonProgress>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -55,6 +57,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(l => l.Module).WithMany(m => m.Lessons)
              .HasForeignKey(l => l.ModuleId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(l => new { l.ModuleId, l.OrderIndex });
+        });
+
+        // Phase 3. All four foreign keys are Restrict (NO ACTION in SQL Server):
+        // 1) SQL Server refuses "multiple cascade paths" to the same table
+        //    (User -> Enrollments and Course -> Modules -> Lessons -> LessonProgresses would both cascade).
+        // 2) Students' enrollments and progress must never disappear silently when something else is deleted.
+        // The services return a clear 409 before the database ever has to refuse.
+        modelBuilder.Entity<Enrollment>(e =>
+        {
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.UserId, x.CourseId }).IsUnique();   // one enrollment per student per course
+        });
+
+        modelBuilder.Entity<LessonProgress>(e =>
+        {
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Lesson).WithMany().HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.UserId, x.LessonId }).IsUnique();   // a lesson is completed once per student
         });
     }
 }

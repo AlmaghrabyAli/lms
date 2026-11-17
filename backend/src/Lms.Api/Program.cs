@@ -70,6 +70,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IInstructorCourseService, InstructorCourseService>();
 builder.Services.AddScoped<IInstructorContentService, InstructorContentService>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();
+builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 
 var app = builder.Build();
 

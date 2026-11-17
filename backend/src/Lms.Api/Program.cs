@@ -71,6 +71,7 @@ builder.Services.AddScoped<IInstructorCourseService, InstructorCourseService>();
 builder.Services.AddScoped<IInstructorContentService, InstructorContentService>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+builder.Services.AddScoped<ILearningService, LearningService>();
 
 var app = builder.Build();
 

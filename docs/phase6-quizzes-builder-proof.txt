@@ -1,0 +1,88 @@
+--- Schema (migration AddQuizzes)
+PASS  Quizzes has 10 columns
+PASS  Questions has 6 columns
+PASS  AnswerOptions has 4 columns
+PASS  QuizAttempts has 7 columns
+PASS  AttemptAnswers has 4 columns
+PASS  foreign key Quizzes -> Courses is CASCADE
+PASS  foreign key Quizzes -> Modules is NO_ACTION
+PASS  foreign key Questions -> Quizzes is CASCADE
+PASS  foreign key AnswerOptions -> Questions is CASCADE
+PASS  foreign key QuizAttempts -> Quizzes is NO_ACTION
+PASS  foreign key QuizAttempts -> Users is NO_ACTION
+PASS  foreign key AttemptAnswers -> QuizAttempts is CASCADE
+PASS  foreign key AttemptAnswers -> Questions is NO_ACTION
+PASS  foreign key AttemptAnswers -> AnswerOptions is NO_ACTION
+PASS  AttemptAnswers has a unique index on (AttemptId, SelectedOptionId)
+PASS  QuizAttempts has a filtered unique index (one open attempt per student and quiz)
+--- Access rules
+PASS  no token -> 401
+PASS  student -> 403
+PASS  admin -> 403
+PASS  another instructor lists quizzes of someone else's course -> 404
+PASS  another instructor creates a quiz on someone else's course -> 404
+--- Quiz CRUD and validation
+PASS  create quiz -> 201 with defaults (passing 60, no max attempts, unpublished, unlocked, no questions)
+PASS  other instructor GET quiz -> 404
+PASS  other instructor PUT quiz -> 404
+PASS  other instructor DELETE quiz -> 404
+PASS  other instructor adds a question -> 404
+PASS  other instructor publishes -> 404
+PASS  other instructor reads results -> 404
+PASS  invalid quiz rejected with 400: title too short
+PASS  invalid quiz rejected with 400: passing score 0
+PASS  invalid quiz rejected with 400: passing score 101
+PASS  invalid quiz rejected with 400: maxAttempts 0
+PASS  invalid quiz rejected with 400: maxAttempts 21
+PASS  invalid quiz rejected with 400: module of another course
+PASS  the rejected requests created nothing (course A still has exactly 1 quiz)
+PASS  quiz bound to a module keeps moduleId, passing 70 and maxAttempts 3
+PASS  list shows both quizzes, the module title and zero counts
+--- Questions
+PASS  add SingleChoice -> order 1, 4 options, one correct
+PASS  add MultipleChoice -> order 2, two correct options
+PASS  add TrueFalse -> order 3, two options
+PASS  invalid question rejected with 400: SingleChoice with two correct options
+PASS  invalid question rejected with 400: SingleChoice with no correct option
+PASS  invalid question rejected with 400: MultipleChoice where every option is correct
+PASS  invalid question rejected with 400: TrueFalse with three options
+PASS  invalid question rejected with 400: only one option
+PASS  invalid question rejected with 400: nine options
+PASS  invalid question rejected with 400: duplicate option texts
+PASS  invalid question rejected with 400: points = 0
+PASS  invalid question rejected with 400: missing type
+PASS  invalid question rejected with 400: unknown type Essay
+PASS  invalid question rejected with 400: numeric type 1 is rejected
+PASS  invalid question rejected with 400: question text too short
+PASS  invalid question rejected with 400: option with empty text
+PASS  quiz detail: 3 questions in order 1,2,3 and totalPoints 4 (1+2+1)
+PASS  update question -> 200 with the new text, points and options (order unchanged)
+PASS  update replaced the options in the database (3 rows, the old 4 are gone)
+PASS  invalid update -> 400 and the question is unchanged
+PASS  delete question -> 204, the rest is compacted to 1,2 and totalPoints is 3+1
+--- Publish rules
+PASS  publish a quiz without questions -> 409
+PASS  publish a quiz with questions -> 200 and isPublished
+PASS  publish again is idempotent -> 200
+PASS  unpublish -> 200 and isPublished false
+PASS  deleting the last question of a PUBLISHED quiz -> 409 and it stays
+PASS  after unpublishing, the last question can be deleted -> 204
+--- Locked after attempts (attempt rows inserted with SQL, the student endpoints come in B2.2)
+PASS  detail shows isLocked true and attemptCount 1
+PASS  adding a question to a locked quiz -> 409
+PASS  updating a question of a locked quiz -> 409
+PASS  deleting a question of a locked quiz -> 409
+PASS  deleting a quiz that has attempts -> 409 and it stays
+PASS  renaming a locked quiz (same passing score) is still allowed -> 200
+PASS  changing the passing score of a locked quiz -> 409
+PASS  the database refuses a second open attempt for the same student and quiz
+PASS  results list is empty while no attempt is submitted -> 200 []
+--- Module, course and quiz deletes
+PASS  deleting a module that holds a quiz -> 204
+PASS  the quiz is kept and moved to course level (ModuleId is NULL)
+PASS  deleting a draft course that has a module-bound quiz -> 204
+PASS  that course's quiz, questions and options are gone
+PASS  deleting a quiz without attempts -> 204
+PASS  its questions and options are gone too
+--- Cleanup
+PASS  test data cleaned up

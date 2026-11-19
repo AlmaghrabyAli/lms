@@ -11,6 +11,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
     public DbSet<LessonProgress> LessonProgresses => Set<LessonProgress>();
+    public DbSet<Quiz> Quizzes => Set<Quiz>();
+    public DbSet<Question> Questions => Set<Question>();
+    public DbSet<AnswerOption> AnswerOptions => Set<AnswerOption>();
+    public DbSet<QuizAttempt> QuizAttempts => Set<QuizAttempt>();
+    public DbSet<AttemptAnswer> AttemptAnswers => Set<AttemptAnswer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,6 +81,51 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Lesson).WithMany().HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.UserId, x.LessonId }).IsUnique();   // a lesson is completed once per student
+        });
+
+        // Phase 6 (quizzes).
+        // Cascade: Course -> Quiz -> Question -> AnswerOption (deleting a draft course removes its quiz content).
+        // Restrict: everything that belongs to a student's attempt, so results are never wiped silently, and
+        //   Quiz -> Module (a module delete must not take the quiz with it; the content service moves the quiz
+        //   to course level first). AttemptAnswer -> Question/AnswerOption are Restrict because the attempt path
+        //   (Quiz -> Attempt -> Answer) and the question path (Quiz -> Question -> Answer) would be two cascade paths.
+        modelBuilder.Entity<Quiz>(e =>
+        {
+            e.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Module).WithMany().HasForeignKey(x => x.ModuleId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.CourseId);
+        });
+
+        modelBuilder.Entity<Question>(e =>
+        {
+            e.Property(x => x.Text).IsRequired().HasMaxLength(1000);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
+            e.HasOne(x => x.Quiz).WithMany(q => q.Questions).HasForeignKey(x => x.QuizId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.QuizId, x.OrderIndex });
+        });
+
+        modelBuilder.Entity<AnswerOption>(e =>
+        {
+            e.Property(x => x.Text).IsRequired().HasMaxLength(500);
+            e.HasOne(x => x.Question).WithMany(q => q.Options).HasForeignKey(x => x.QuestionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<QuizAttempt>(e =>
+        {
+            e.HasOne(x => x.Quiz).WithMany().HasForeignKey(x => x.QuizId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            // At most ONE open (not yet submitted) attempt per student and quiz, enforced by the database.
+            e.HasIndex(x => new { x.UserId, x.QuizId }).IsUnique().HasFilter("[SubmittedAt] IS NULL");
+        });
+
+        modelBuilder.Entity<AttemptAnswer>(e =>
+        {
+            e.HasOne(x => x.Attempt).WithMany(a => a.Answers).HasForeignKey(x => x.AttemptId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Question).WithMany().HasForeignKey(x => x.QuestionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.SelectedOption).WithMany().HasForeignKey(x => x.SelectedOptionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.AttemptId, x.SelectedOptionId }).IsUnique();   // an option is selected once per attempt
         });
     }
 }

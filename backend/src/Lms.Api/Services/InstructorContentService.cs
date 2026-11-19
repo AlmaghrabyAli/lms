@@ -77,6 +77,8 @@ public class InstructorContentService(AppDbContext db) : IInstructorContentServi
         db.Modules.Remove(module); // the database cascade removes the module's lessons
         // Phase 6: quizzes that pointed at this module move to course level (ModuleId becomes NULL); no quiz is deleted.
         await db.Quizzes.Where(q => q.ModuleId == moduleId).ExecuteUpdateAsync(s => s.SetProperty(q => q.ModuleId, (int?)null));
+        // Phase 7: assignments that pointed at this module move to course level too (ModuleId becomes NULL).
+        await db.Assignments.Where(a => a.ModuleId == moduleId).ExecuteUpdateAsync(s => s.SetProperty(a => a.ModuleId, (int?)null));
 
         // Compact the remaining modules to 1..n in the same SaveChanges.
         for (var i = 0; i < siblings.Count; i++) siblings[i].OrderIndex = i + 1;

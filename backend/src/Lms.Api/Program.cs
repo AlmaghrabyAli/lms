@@ -76,6 +76,7 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IInstructorStudentsService, InstructorStudentsService>();
 builder.Services.AddScoped<IInstructorQuizService, InstructorQuizService>();
 builder.Services.AddScoped<IQuizTakingService, QuizTakingService>();
+builder.Services.AddScoped<IInstructorAssignmentService, InstructorAssignmentService>();
 
 var app = builder.Build();
 

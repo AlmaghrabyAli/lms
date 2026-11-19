@@ -1,0 +1,62 @@
+--- Schema (migration AddAssignments)
+PASS  Assignments has 10 columns
+PASS  Submissions has 9 columns
+PASS  foreign key Assignments -> Courses is CASCADE
+PASS  foreign key Assignments -> Modules is NO_ACTION
+PASS  foreign key Submissions -> Assignments is NO_ACTION
+PASS  foreign key Submissions -> Users is NO_ACTION
+PASS  Submissions has a unique index on (AssignmentId, StudentId)
+--- Access rules
+PASS  no token -> 401
+PASS  student -> 403
+PASS  admin -> 403
+PASS  another instructor lists assignments of someone else's course -> 404
+PASS  another instructor creates an assignment on someone else's course -> 404
+--- Assignment CRUD and validation
+PASS  create assignment -> 201 with defaults (maxScore 100, no due date, unpublished, no submissions)
+PASS  other instructor GET assignment -> 404
+PASS  other instructor PUT assignment -> 404
+PASS  other instructor DELETE assignment -> 404
+PASS  other instructor publishes -> 404
+PASS  other instructor reads submissions -> 404
+PASS  invalid assignment rejected with 400: title too short
+PASS  invalid assignment rejected with 400: instructions too short
+PASS  invalid assignment rejected with 400: instructions missing
+PASS  invalid assignment rejected with 400: maxScore 0
+PASS  invalid assignment rejected with 400: maxScore 1001
+PASS  invalid assignment rejected with 400: module of another course
+PASS  invalid assignment rejected with 400: dueDate is not a date
+PASS  the rejected requests created nothing (course A still has exactly 1 assignment)
+PASS  assignment bound to a module keeps moduleId, maxScore 50 and the due date
+PASS  list shows both assignments, the module title and zero counts
+PASS  update assignment -> 200 with the new title, instructions and due date
+PASS  invalid update -> 400 and the assignment is unchanged
+PASS  publish -> 200 and isPublished
+PASS  publish again is idempotent -> 200
+PASS  unpublish -> 200 and isPublished false
+--- Submissions and grading (submission rows inserted with SQL, the student endpoints come in B3.2)
+PASS  detail shows submissionCount 1 and gradedCount 0
+PASS  deleting an assignment that has submissions -> 409 and it stays
+PASS  the database refuses a second submission for the same student and assignment
+PASS  grading table row: student name, email, text, not late, ungraded
+PASS  a submission after the due date is flagged isLate
+PASS  grade 85 with feedback -> 200 and the row is stored
+PASS  score above MaxScore (101 of 100) -> 400
+PASS  negative score -> 400
+PASS  feedback longer than 2000 characters -> 400
+PASS  grading again is allowed -> 200 with the new score
+PASS  another instructor cannot grade -> 404
+PASS  a student cannot grade -> 403
+PASS  unknown submission -> 404
+PASS  lowering MaxScore below a graded score (50 < 90) -> 409
+PASS  raising MaxScore (150) is allowed -> 200
+PASS  detail shows submissionCount 1 and gradedCount 1
+--- Module, course and assignment deletes
+PASS  deleting a module that holds an assignment -> 204
+PASS  the assignment is kept and moved to course level (ModuleId is NULL)
+PASS  deleting a draft course that has a module-bound assignment -> 204
+PASS  that course's assignment is gone
+PASS  deleting an assignment without submissions -> 204
+PASS  and it is gone from the database
+--- Cleanup
+PASS  test data cleaned up

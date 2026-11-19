@@ -16,6 +16,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AnswerOption> AnswerOptions => Set<AnswerOption>();
     public DbSet<QuizAttempt> QuizAttempts => Set<QuizAttempt>();
     public DbSet<AttemptAnswer> AttemptAnswers => Set<AttemptAnswer>();
+    public DbSet<Assignment> Assignments => Set<Assignment>();
+    public DbSet<Submission> Submissions => Set<Submission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -126,6 +128,29 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.Question).WithMany().HasForeignKey(x => x.QuestionId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.SelectedOption).WithMany().HasForeignKey(x => x.SelectedOptionId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.AttemptId, x.SelectedOptionId }).IsUnique();   // an option is selected once per attempt
+        });
+
+        // Phase 7 (assignments).
+        // Cascade: Course -> Assignment (a draft course takes its assignments with it).
+        // Restrict: Assignment -> Module (the content service moves the assignment to course level first) and
+        //   everything of a student's submission (work and grades must never vanish silently).
+        modelBuilder.Entity<Assignment>(e =>
+        {
+            e.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Instructions).IsRequired().HasMaxLength(10000);
+            e.HasOne(x => x.Course).WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Module).WithMany().HasForeignKey(x => x.ModuleId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.CourseId);
+        });
+
+        modelBuilder.Entity<Submission>(e =>
+        {
+            e.Property(x => x.TextContent).HasMaxLength(10000);
+            e.Property(x => x.LinkUrl).HasMaxLength(500);
+            e.Property(x => x.Feedback).HasMaxLength(2000);
+            e.HasOne(x => x.Assignment).WithMany().HasForeignKey(x => x.AssignmentId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.AssignmentId, x.StudentId }).IsUnique();   // one submission per student per assignment
         });
     }
 }

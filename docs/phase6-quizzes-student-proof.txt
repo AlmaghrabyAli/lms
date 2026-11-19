@@ -1,0 +1,70 @@
+--- Access and visibility
+PASS  no token -> 401
+PASS  unknown quiz -> 404
+PASS  unpublished quiz -> 404 for an enrolled student
+PASS  student who is not enrolled -> 403 on the quiz
+PASS  student who is not enrolled cannot start an attempt -> 403
+PASS  another instructor -> 403
+PASS  the owner can preview the quiz (200, attemptsUsed 0)
+PASS  admin can preview the quiz (200, attemptsUsed 0)
+PASS  the owner cannot start an attempt (student only) -> 403
+PASS  admin cannot start an attempt (student only) -> 403
+PASS  course quiz list for an enrolled student: the 3 published quizzes, not the hidden one
+PASS  course quiz list for a student who is not enrolled -> 403
+PASS  course quiz list for an unknown course -> 404
+PASS  quiz of a draft course -> 404 for an enrolled student
+PASS  after the course is published again -> 200
+--- Correct answers never leave the server before submit
+PASS  quiz info: 200, counts only, no questions and no isCorrect
+PASS  course quiz list contains no isCorrect
+PASS  start attempt -> 201 with 3 questions (4, 4 and 2 options), 4 points, not resumed
+PASS  the attempt's questions contain no isCorrect field at all
+PASS  starting again returns the SAME open attempt (200, resumed)
+PASS  reading the result before submitting -> 409
+PASS  another student cannot read my attempt -> 404
+PASS  another student cannot submit my attempt -> 404
+--- Submit validation (400) - the attempt stays open
+PASS  bad submit rejected with 400: unknown question id
+PASS  bad submit rejected with 400: option that belongs to another question
+PASS  bad submit rejected with 400: same question answered twice
+PASS  bad submit rejected with 400: SingleChoice with two options
+PASS  bad submit rejected with 400: same option selected twice
+PASS  bad submit rejected with 400: question of another quiz
+PASS  bad submit rejected with 400: answers field missing
+PASS  the attempt is still open after the rejected submits
+--- Grading and results (Quiz One: 4 points, passing 60, max 2 attempts)
+PASS  attempt 1 (single right, multiple incomplete, true/false right): 2 of 4 = 50%, failed
+PASS  per-question result: true,false,true and points 1,0,1
+PASS  after submit the correct answers are revealed (Red,Blue) next to what the student picked (Red)
+PASS  submitting the same attempt again -> 409
+PASS  GET attempt after submit -> 200, same 50% and the answers are visible
+PASS  database: score 50, not passed, submitted, 3 selected option rows
+PASS  my-attempts: used 1, max 2, left 1, best 50, one attempt listed
+PASS  quiz info: used 1, best 50, not passed, no open attempt
+PASS  second attempt starts as a NEW attempt (201, different id)
+PASS  attempt 2 (everything right): 4 of 4 = 100%, passed
+PASS  my-attempts: used 2, left 0, best 100
+PASS  quiz info: best 100 and passed
+PASS  a third attempt is refused (max 2) -> 409
+--- All or nothing, best score and rounding (Quiz Two and Three)
+PASS  Quiz Two attempt 1: all correct -> 100%, passed
+PASS  Quiz Two attempt 2: one extra wrong option -> the MultipleChoice gets 0, so 1 of 4 = 25%, failed
+PASS  Quiz Two attempt 3: no answers at all -> 0%, failed
+PASS  Quiz Two info: 3 attempts used, no limit, best 100, passed
+PASS  without a limit a 4th attempt can start (left open for the next section)
+PASS  Quiz Three: 2 of 3 = 66.67% is rounded to 67% and passes the 67% bar
+--- Unpublishing while an attempt is open
+PASS  submitting to an unpublished quiz -> 404
+PASS  after republishing, the open attempt can be submitted (0%)
+--- Instructor sees the results
+PASS  Quiz One results: only the student who submitted (2 attempts, best 100, passed)
+PASS  Quiz Two results: 4 attempts, best 100
+PASS  builder detail of Quiz One: locked with 2 attempts
+PASS  adding a question to the locked Quiz One -> 409
+--- Dashboard
+PASS  recentQuizResults has the 5 newest of 7 submitted attempts
+PASS  newest first: Quiz Two (0%, failed)
+PASS  second newest: Quiz Three (67%, passed)
+PASS  a student without attempts has an empty recentQuizResults
+--- Cleanup
+PASS  test data cleaned up

@@ -7,6 +7,7 @@ namespace Lms.Api.Services;
 public class DashboardService(AppDbContext db, IEnrollmentService enrollments) : IDashboardService
 {
     private const int MaxEnrollments = 6;
+    private const int MaxRecentQuizResults = 5;
 
     private sealed record NextLesson(int Id, string Title);
 
@@ -47,6 +48,30 @@ public class DashboardService(AppDbContext db, IEnrollmentService enrollments) :
             break;
         }
 
+        // Phase 6: the student's most recent SUBMITTED quiz attempts, newest first.
+        var recentRows = await db.QuizAttempts.AsNoTracking()
+            .Where(a => a.UserId == userId && a.SubmittedAt != null)
+            .OrderByDescending(a => a.SubmittedAt).ThenByDescending(a => a.Id)
+            .Take(MaxRecentQuizResults)
+            .Select(a => new
+            {
+                a.Id,
+                a.QuizId,
+                QuizTitle = a.Quiz.Title,
+                a.Quiz.CourseId,
+                CourseTitle = a.Quiz.Course.Title,
+                a.ScorePercent,
+                a.Passed,
+                a.SubmittedAt
+            })
+            .ToListAsync();
+
+        var recentQuizResults = recentRows
+            .Select(a => new RecentQuizResultDto(
+                a.Id, a.QuizId, a.QuizTitle, a.CourseId, a.CourseTitle,
+                a.ScorePercent ?? 0, a.Passed ?? false, a.SubmittedAt!.Value))
+            .ToList();
+
         return new DashboardDto(
             EnrolledCount: all.Count,
             CompletedCount: completedCount,
@@ -55,7 +80,7 @@ public class DashboardService(AppDbContext db, IEnrollmentService enrollments) :
             ContinueLearning: continueLearning,
             Enrollments: byActivity.Take(MaxEnrollments).ToList(),
             UpcomingAssignments: new List<UpcomingAssignmentDto>(),
-            RecentQuizResults: new List<RecentQuizResultDto>());
+            RecentQuizResults: recentQuizResults);
     }
 
     // The first lesson the student has not completed, in course order

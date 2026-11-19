@@ -79,6 +79,9 @@ builder.Services.AddScoped<IQuizTakingService, QuizTakingService>();
 builder.Services.AddScoped<IInstructorAssignmentService, InstructorAssignmentService>();
 builder.Services.AddScoped<IAssignmentTakingService, AssignmentTakingService>();
 builder.Services.AddScoped<IGradesService, GradesService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+// A JWT stays valid until it expires, so every authenticated request re-checks the account (disabled or role changed -> 401).
+builder.Services.PostConfigure<Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions>(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme, options => options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents { OnTokenValidated = Lms.Api.Authorization.ActiveUserCheck.OnTokenValidatedAsync });
 
 var app = builder.Build();
 

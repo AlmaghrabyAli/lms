@@ -1,0 +1,88 @@
+--- Access matrix (every admin endpoint)
+PASS  GET users as no token -> 401
+PASS  GET users as student -> 403
+PASS  GET users as instructor -> 403
+PASS  PUT user role as no token -> 401
+PASS  PUT user role as student -> 403
+PASS  PUT user role as instructor -> 403
+PASS  PUT user active as no token -> 401
+PASS  PUT user active as student -> 403
+PASS  PUT user active as instructor -> 403
+PASS  GET courses as no token -> 401
+PASS  GET courses as student -> 403
+PASS  GET courses as instructor -> 403
+PASS  POST course unpublish as no token -> 401
+PASS  POST course unpublish as student -> 403
+PASS  POST course unpublish as instructor -> 403
+PASS  GET stats as no token -> 401
+PASS  GET stats as student -> 403
+PASS  GET stats as instructor -> 403
+--- Users list
+PASS  search by the test stamp: 5 users, page 1, pageSize 20, totalPages 1
+PASS  each user exposes name, email, role, status and counts but never the password hash
+PASS  role filter is case-insensitive: instructor -> 2
+PASS  role filter Student -> 3
+PASS  unknown role filter -> 400
+PASS  pageSize=2 page=1: 2 items, totalCount 5, totalPages 3
+PASS  page 3 holds the last user
+PASS  pageSize=0 falls back to 20
+PASS  pageSize=500 is capped at 50
+PASS  counts: instructor A owns 2 courses, student A has 1 enrollment
+--- Changing roles
+PASS  role that does not exist -> 400
+PASS  missing role -> 400
+PASS  numeric role -> 400
+PASS  unknown user -> 404
+PASS  promote student B to Admin -> 200
+PASS  student B's old token is rejected after the role change -> 401
+PASS  after signing in again, the new admin token opens the admin area -> 200
+PASS  an admin cannot change their own role -> 409 and it stays Admin
+PASS  an admin cannot disable themselves -> 409 and stays active
+PASS  another admin demotes them back to Student -> 200
+PASS  promote student A to Instructor -> 200 and the database agrees
+PASS  setting the same role again is idempotent -> 200
+PASS  student A's old token is rejected -> 401
+PASS  after signing in again, student A can use instructor endpoints -> 200
+PASS  an instructor who owns courses cannot be demoted -> 409 and stays Instructor
+PASS  an instructor without courses can be demoted -> 200
+PASS  instructor B's old token is rejected -> 401
+--- Disabling and enabling users
+PASS  missing isActive -> 400
+PASS  isActive that is not a boolean -> 400
+PASS  unknown user -> 404
+PASS  disable user A -> 200 and isActive false
+PASS  FIX: the disabled user's token that is still unexpired is rejected -> 401
+PASS  a disabled user cannot sign in -> 403
+PASS  isActive=false filter lists exactly the disabled user
+PASS  enable user A again -> 200 and isActive true
+PASS  the same token works again after enabling -> 200
+PASS  the user can sign in again -> 200
+--- Courses
+PASS  published list: the course with its instructor, 3 enrollments, 2 lessons and level
+PASS  draft list: the draft course with no enrollments and no lessons
+PASS  unknown status filter -> 400
+PASS  without a status filter both courses are listed
+PASS  admin unpublishes a course -> 200 and isPublished false
+PASS  an enrolled student can no longer open it -> 404, but the 3 enrollments are kept
+PASS  unpublishing again is idempotent -> 200
+PASS  unknown course -> 404
+--- Stats
+PASS  stats.totalUsers equals the database
+PASS  stats.students equals the database
+PASS  stats.instructors equals the database
+PASS  stats.admins equals the database
+PASS  stats.inactiveUsers equals the database
+PASS  stats.totalCourses equals the database
+PASS  stats.publishedCourses equals the database
+PASS  stats.draftCourses equals the database
+PASS  stats.totalEnrollments equals the database
+PASS  stats.totalLessons equals the database
+PASS  stats.totalQuizzes equals the database
+PASS  stats.totalAssignments equals the database
+PASS  stats.quizAttemptsSubmitted equals the database
+PASS  stats.totalSubmissions equals the database
+PASS  stats.gradedSubmissions equals the database
+PASS  topCourses: 1 to 5 courses with title, sorted by enrollments (high to low)
+PASS  newUsersLast7Days counts the 5 test users and enrollmentsLast7Days the 3 test enrollments
+--- Cleanup
+PASS  test data cleaned up

@@ -8,6 +8,7 @@ public class DashboardService(AppDbContext db, IEnrollmentService enrollments) :
 {
     private const int MaxEnrollments = 6;
     private const int MaxRecentQuizResults = 5;
+    private const int MaxUpcomingAssignments = 5;
 
     private sealed record NextLesson(int Id, string Title);
 
@@ -72,6 +73,24 @@ public class DashboardService(AppDbContext db, IEnrollmentService enrollments) :
                 a.ScorePercent ?? 0, a.Passed ?? false, a.SubmittedAt!.Value))
             .ToList();
 
+        // Phase 7: published assignments of the student's available courses that were NOT submitted yet.
+        // Overdue ones come first (late submissions are still accepted), then by the nearest due date;
+        // assignments without a due date come last. Sorted in memory: the candidate list is small.
+        var availableCourseIds = all.Where(e => e.IsAvailable).Select(e => e.CourseId).ToList();
+        var submittedIds = await db.Submissions.AsNoTracking()
+            .Where(s => s.StudentId == userId)
+            .Select(s => s.AssignmentId)
+            .ToListAsync();
+        var candidates = await db.Assignments.AsNoTracking()
+            .Where(a => a.IsPublished && availableCourseIds.Contains(a.CourseId) && !submittedIds.Contains(a.Id))
+            .Select(a => new { a.Id, a.CourseId, CourseTitle = a.Course.Title, a.Title, a.DueDate })
+            .ToListAsync();
+        var upcomingAssignments = candidates
+            .OrderBy(a => a.DueDate is null).ThenBy(a => a.DueDate).ThenBy(a => a.Id)
+            .Take(MaxUpcomingAssignments)
+            .Select(a => new UpcomingAssignmentDto(a.Id, a.CourseId, a.CourseTitle, a.Title, a.DueDate))
+            .ToList();
+
         return new DashboardDto(
             EnrolledCount: all.Count,
             CompletedCount: completedCount,
@@ -79,7 +98,7 @@ public class DashboardService(AppDbContext db, IEnrollmentService enrollments) :
             CompletedLessonsCount: completedLessonsCount,
             ContinueLearning: continueLearning,
             Enrollments: byActivity.Take(MaxEnrollments).ToList(),
-            UpcomingAssignments: new List<UpcomingAssignmentDto>(),
+            UpcomingAssignments: upcomingAssignments,
             RecentQuizResults: recentQuizResults);
     }
 

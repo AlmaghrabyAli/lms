@@ -1,0 +1,56 @@
+--- Access and visibility
+PASS  no token -> 401
+PASS  unknown assignment -> 404
+PASS  unpublished assignment -> 404 for an enrolled student
+PASS  student who is not enrolled -> 403 on the assignment
+PASS  student who is not enrolled cannot submit -> 403
+PASS  another instructor -> 403
+PASS  the owner can preview the assignment (200, NotSubmitted)
+PASS  admin can preview the assignment (200, NotSubmitted)
+PASS  the owner cannot submit (student only) -> 403
+PASS  admin cannot submit (student only) -> 403
+PASS  course list for an enrolled student: the 3 published assignments, all NotSubmitted, not the hidden one
+PASS  course list for a student who is not enrolled -> 403
+PASS  course list for an unknown course -> 404
+PASS  assignment of a draft course -> 404 for an enrolled student
+PASS  after the course is published again -> 200
+--- Submit validation (400)
+PASS  bad submission rejected with 400: text with only spaces
+PASS  bad submission rejected with 400: neither text nor link
+PASS  bad submission rejected with 400: ftp link
+PASS  bad submission rejected with 400: link that is not a URL
+PASS  bad submission rejected with 400: javascript link
+PASS  bad submission rejected with 400: text longer than 10000 characters
+PASS  bad submission rejected with 400: link longer than 500 characters
+PASS  the rejected requests created no submission
+--- Submitting, resubmitting and lateness
+PASS  first submission -> 201, not late, not graded, maxScore 100
+PASS  assignment detail: status Submitted with my submission and the instructions
+PASS  my-submission -> 200 with my text
+PASS  my-submission of an assignment I never submitted -> 404
+PASS  resubmitting before grading updates the same submission -> 200 (same id, new text, link added)
+PASS  database: still exactly one submission row for this student
+PASS  course list: Assignment One is Submitted, Assignment Two is NotSubmitted
+PASS  another enrolled student sees NotSubmitted and none of my work
+PASS  a submission after the due date is accepted (201) and flagged isLate
+--- Grading
+PASS  the instructor sees my latest text and link in the grading table
+PASS  the instructor grades 85 with feedback -> 200
+PASS  the student sees status Graded, score 85 of 100 and the feedback
+PASS  resubmitting after grading -> 409
+PASS  database: the graded work is unchanged
+PASS  after a regrade the student sees 90 and the new feedback
+--- Dashboard
+PASS  upcoming for the student who submitted two: only Assignment Three (no due date); the hidden one is not shown
+PASS  upcoming for the student who submitted nothing: overdue first, then the later due date, then no due date
+--- My grades (assignments and quizzes)
+PASS  grades: Assignment One graded 90 of 100 with feedback, Assignment Two submitted late and not graded yet
+PASS  grades: the quiz shows 1 attempt, best 100, passed
+PASS  a student with no work has empty grades
+PASS  the instructor cannot read student grades (student only) -> 403
+PASS  no token -> 401
+--- Unpublishing hides an assignment
+PASS  an unpublished assignment -> 404 for the student
+PASS  and it disappears from the dashboard (upcomingAssignments is empty)
+--- Cleanup
+PASS  test data cleaned up

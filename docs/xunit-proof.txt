@@ -1,0 +1,8 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Lms.Api -> D:\dev\auspify\lms\backend\src\Lms.Api\bin\Debug\net10.0\Lms.Api.dll
+  Lms.Tests -> D:\dev\auspify\lms\backend\tests\Lms.Tests\bin\Debug\net10.0\Lms.Tests.dll
+Test run for D:\dev\auspify\lms\backend\tests\Lms.Tests\bin\Debug\net10.0\Lms.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    92, Skipped:     0, Total:    92, Duration: 4 s - Lms.Tests.dll (net10.0)

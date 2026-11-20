@@ -87,6 +87,7 @@ var app = builder.Build();
 
 // Apply migrations and seed initial data
 await DbSeeder.SeedAsync(app.Services);
+await DemoContentSeeder.SeedAsync(app.Services);
 
 // Middleware pipeline (order matters)
 app.UseExceptionHandler(); // unhandled exceptions -> ProblemDetails (keep this first)

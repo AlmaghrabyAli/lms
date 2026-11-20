@@ -1,0 +1,33 @@
+--- Off by default
+PASS  with Seed:DemoContent unset nothing is seeded
+--- Seeded content (database)
+PASS  4 demo courses exist and all belong to the demo instructor
+PASS  3 are published and Advanced React Patterns is a draft
+PASS  5 modules and 12 lessons
+PASS  the quiz: published, passing 60, max 3 attempts, in a module, 3 questions, 10 options
+PASS  the assignment: published, max score 100, due in the future
+--- Public catalog (no login)
+PASS  search finds the demo course
+PASS  category Programming lists both programming courses and level Intermediate lists JavaScript Essentials
+PASS  the categories include Web Development and Programming
+PASS  course details show the outline but not the lesson text
+--- Instructor view
+PASS  the instructor sees 3 published courses and the draft
+PASS  the quiz builder lists Web basics quiz with 3 questions and 4 points
+PASS  the assignment manager lists Build your first web page
+PASS  the draft course can be published live -> 200
+PASS  and unpublished again -> 200 (the demo stays as it was)
+--- The demo video flow (a fresh student)
+PASS  the student enrolls in the demo course -> 201
+PASS  the student completes all 5 lessons
+PASS  the dashboard shows 1 enrolled, 1 completed and 5 completed lessons
+PASS  the course shows the quiz with 3 attempts allowed and no correct answers
+PASS  the student answers the quiz correctly: 100% and passed
+PASS  the course shows the assignment as NotSubmitted
+PASS  the student submits a link -> 201 and it is not late
+PASS  the instructor grades 95 and the student sees Graded, 95 of 100 and the feedback
+PASS  the dashboard shows the quiz result and no upcoming assignment left
+PASS  my grades: the graded assignment (95) and the quiz (best 100)
+--- Cleanup and idempotency
+PASS  after cleaning the test student the demo content is untouched (4 courses, no enrollments)
+PASS  restarting with the switch on seeds nothing twice (still 4 courses and 12 lessons)
